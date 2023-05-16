@@ -38,17 +38,18 @@ def get_rules(project_dictionary):
 			if 'Release' in project_dictionary['settings']['configs']:
 				setttings_dictionary |= project_dictionary['settings']['configs']['Release']
 	rules = {}
-	compile_cpp_rule = 'g++ -c'
+	compile_cpp_rule =  '  depfile = $out.d\n'
+	compile_cpp_rule += '  command = g++ -c -MD -MF $out.d'
 	if 'CLANG_CXX_LANGUAGE_STANDARD' in setttings_dictionary:
 		compile_cpp_rule += ' -std=' + setttings_dictionary['CLANG_CXX_LANGUAGE_STANDARD']
 	if to_bool(setttings_dictionary.get('GCC_WARN_PEDANTIC')):
 		compile_cpp_rule += ' -pedantic'
 	if to_bool(setttings_dictionary.get('GCC_TREAT_WARNINGS_AS_ERRORS')):
 		compile_cpp_rule += ' -Werror'
-	compile_cpp_rule += ' $flags -o $out $in'
+	compile_cpp_rule += ' $flags -o $out $in\n'
 	rules['compile_cpp'] = compile_cpp_rule
-	rules['archive'] = 'ar rcs $out $in'
-	rules['link'] = 'g++ -o $out $in $flags'
+	rules['archive'] = '  command = ar rcs $out $in\n'
+	rules['link'] = '  command = g++ -o $out $in $flags\n'
 	return rules
 
 def load_target(name, dictionary, path):
@@ -83,8 +84,7 @@ def get_object_path(source_path, prefix, object_dir):
 def out_rules(project_dictionary, file):
 	rules = get_rules(project_dictionary)
 	for rule_name in rules.keys():
-		file.write('rule ' + rule_name + '\n')
-		file.write('  command = ' + rules[rule_name] + '\n\n')
+		file.write('rule ' + rule_name + '\n' + rules[rule_name] + '\n')
 
 def out_build(product, rule, sources, flags, file):
 	sources_list = ''
