@@ -48,7 +48,7 @@ def get_rules(project_dictionary):
 	compile_cpp_rule += ' $flags -o $out $in'
 	rules['compile_cpp'] = compile_cpp_rule
 	rules['archive'] = 'ar rcs $out $in'
-	rules['link'] = 'g++ -o $out $in'
+	rules['link'] = 'g++ -o $out $in $flags'
 	return rules
 
 def load_target(name, dictionary, path):
@@ -86,17 +86,27 @@ def out_rules(project_dictionary, file):
 		file.write('rule ' + rule_name + '\n')
 		file.write('  command = ' + rules[rule_name] + '\n\n')
 
-def out_build(product, rule, sources, file):
+def out_build(product, rule, sources, flags, file):
 	sources_list = ''
 	for source in sources:
 		sources_list += ' ' + source.replace(' ', '$ ')
 	file.write('build ' + product.replace(' ', '$ ') + ': ' + rule + sources_list + '\n')
-
-def out_build_with_flags(product, rule, sources, flags, file):
-	out_build(product, rule, sources, file)
 	if flags != '':
 		file.write('  flags = ' + flags + '\n')
 
+def is_value(settings, key):
+	if sys.platform == 'linux':
+		if '_LINUX_' + key in settings:
+			return True
+	if key in settings:
+		return True
+	return False
+
+def get_value(settings, key):
+	if sys.platform == 'linux':
+		if '_LINUX_' + key in settings:
+			return settings['_LINUX_' + key]
+	return settings[key]
 
 #############################
 
@@ -140,22 +150,25 @@ with open('build.ninja', 'w') as ninja_file:
 			path_prefix = os.path.commonpath(cpp_sources)
 		else:
 			path_prefix = os.path.split(cpp_sources[0])[0]
-		flags = ''
+		compiler_flags = ''
+		linker_flags = ''
 		if 'settings' in target:
 			settings = target['settings']
-			if 'HEADER_SEARCH_PATHS' in settings:
-				flags = '-I"' + settings['HEADER_SEARCH_PATHS'].replace('${SRCROOT}', srcroot) + '"'
+			if is_value(settings, 'HEADER_SEARCH_PATHS'):
+				compiler_flags = '-I"' + get_value(settings, 'HEADER_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
+			if is_value(settings, 'OTHER_LD_FLAGS'):
+				linker_flags = get_value(settings, 'OTHER_LD_FLAGS')
 		dependencies = []
 		for cpp_source in cpp_sources:
 			object_path = get_object_path(cpp_source, path_prefix, object_dir)
 			dependencies.append(object_path)
-			out_build_with_flags(object_path, 'compile_cpp', [cpp_source], flags, ninja_file)
+			out_build(object_path, 'compile_cpp', [cpp_source], compiler_flags, ninja_file)
 		if 'dependencies' in target:
 			for dependency in target['dependencies']:
 				if to_bool(dependency.get('link')):
 					dependency_path = targets[dependency['target']]['target_path']
 					dependencies.append(dependency_path)
 		if target['type'] == 'library.static':
-			out_build(target['target_path'], 'archive', dependencies, ninja_file)
+			out_build(target['target_path'], 'archive', dependencies, '', ninja_file)
 		if target['type'] == 'tool':
-			out_build(target['target_path'], 'link', dependencies, ninja_file)
+			out_build(target['target_path'], 'link', dependencies, linker_flags, ninja_file)
