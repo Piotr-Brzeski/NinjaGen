@@ -154,10 +154,14 @@ with open('build.ninja', 'w') as ninja_file:
 		linker_flags = ''
 		if 'settings' in target:
 			settings = target['settings']
+			if is_value(settings, 'SYSTEM_HEADER_SEARCH_PATHS'):
+				compiler_flags += ' -isystem "' + get_value(settings, 'SYSTEM_HEADER_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
 			if is_value(settings, 'HEADER_SEARCH_PATHS'):
-				compiler_flags = '-I"' + get_value(settings, 'HEADER_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
-			if is_value(settings, 'OTHER_LD_FLAGS'):
-				linker_flags = get_value(settings, 'OTHER_LD_FLAGS')
+				compiler_flags += ' -I "' + get_value(settings, 'HEADER_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
+			if is_value(settings, 'LIBRARY_SEARCH_PATHS'):
+				linker_flags += ' -L "' + get_value(settings, 'LIBRARY_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
+			if is_value(settings, 'OTHER_LDFLAGS'):
+				linker_flags += ' ' + get_value(settings, 'OTHER_LDFLAGS')
 		dependencies = []
 		for cpp_source in cpp_sources:
 			object_path = get_object_path(cpp_source, path_prefix, object_dir)
