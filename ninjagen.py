@@ -108,6 +108,15 @@ def get_value(settings, key):
 			return settings['_LINUX_' + key]
 	return settings[key]
 
+def expand_path(prefix, value):
+	result = ''
+	if type(value) is str:
+		result += ' ' + prefix + ' "' + value.replace('${SRCROOT}', srcroot) + '"'
+	elif type(value) is list:
+		for path in value:
+			result += expand_path(prefix, path)
+	return result
+
 #############################
 
 project_path = os.path.abspath('project.yml')
@@ -155,11 +164,11 @@ with open('build.ninja', 'w') as ninja_file:
 		if 'settings' in target:
 			settings = target['settings']
 			if is_value(settings, 'SYSTEM_HEADER_SEARCH_PATHS'):
-				compiler_flags += ' -isystem "' + get_value(settings, 'SYSTEM_HEADER_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
+				compiler_flags += expand_path('-isystem', get_value(settings, 'SYSTEM_HEADER_SEARCH_PATHS'))
 			if is_value(settings, 'HEADER_SEARCH_PATHS'):
-				compiler_flags += ' -I "' + get_value(settings, 'HEADER_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
+				compiler_flags += expand_path('-I', get_value(settings, 'HEADER_SEARCH_PATHS'))
 			if is_value(settings, 'LIBRARY_SEARCH_PATHS'):
-				linker_flags += ' -L "' + get_value(settings, 'LIBRARY_SEARCH_PATHS').replace('${SRCROOT}', srcroot) + '"'
+				linker_flags += expand_path('-L', get_value(settings, 'LIBRARY_SEARCH_PATHS'))
 			if is_value(settings, 'OTHER_LDFLAGS'):
 				linker_flags += ' ' + get_value(settings, 'OTHER_LDFLAGS')
 		dependencies = []
